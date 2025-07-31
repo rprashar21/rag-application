@@ -23,7 +23,6 @@ import org.example.functions.model.PageChunk;
 public class DocumentIntelligenceService {
     private static final String MODEL_ID = "prebuilt-layout";
     private final DocumentAnalysisClient documentAnalysisClient;
-    private DocumentIntelligenceClient documentIntelligenceClient ;
     private final ClientLogger logger = new ClientLogger(DocumentIntelligenceService.class);
 
     /**
@@ -46,10 +45,6 @@ public class DocumentIntelligenceService {
                 .credential(new AzureKeyCredential(apiKey))
                 .buildClient();
 
-        this.documentIntelligenceClient=new DocumentIntelligenceClientBuilder()
-                .endpoint(System.getenv(endpoint))
-                .credential(new AzureKeyCredential(apiKey))
-                .buildClient();
     }
 
     /**
@@ -59,21 +54,20 @@ public class DocumentIntelligenceService {
      * @return List of extracted text lines from the document
      * @throws DocumentProcessingException if there's an error processing the document
      */
-    public void analyzeDocument(String sasUrl) throws DocumentProcessingException {
+    public List<PageChunk> analyzeDocument(String sasUrl) throws DocumentProcessingException {
 
 
         logger.info("Starting analysis for SAS URL: " + sasUrl);
         try {
-            //
+
             SyncPoller<OperationResult, AnalyzeResult> poller =
                     documentAnalysisClient.beginAnalyzeDocumentFromUrl("prebuilt-read", sasUrl);
 
             AnalyzeResult result = poller.getFinalResult();
 
             List<PageChunk> pageChunks = chunkByPage(result);
-            System.out.println(pageChunks);
 
-
+            return pageChunks;
         } catch (Exception e) {
             String errorMsg = "Failed to process document: " + e.getMessage();
             logger.error(errorMsg, e);

@@ -1,6 +1,7 @@
 package org.example.functions;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -14,6 +15,7 @@ import com.microsoft.azure.functions.ExecutionContext;
 import com.microsoft.azure.functions.annotation.BindingName;
 import com.microsoft.azure.functions.annotation.BlobTrigger;
 import com.microsoft.azure.functions.annotation.FunctionName;
+import org.example.functions.model.PageChunk;
 import org.example.functions.service.DocumentIntelligenceService;
 import org.example.functions.service.DocumentProcessingException;
 
@@ -87,8 +89,8 @@ public class BlobTriggerJava {
             logger.info("Generated SAS URL: " + sasUrl);
 
             // Pass SAS URL to Document Intelligence
-            documentService.analyzeDocument(sasUrl);
-
+            List<PageChunk> pageChunks = documentService.analyzeDocument(sasUrl);
+            pageChunks.forEach(chunk -> logger.info(chunk.getPageNumber() + " " + chunk.getText()));
 
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Error processing blob: " + name + " | " + e.getMessage(), e);
