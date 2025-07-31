@@ -3,6 +3,8 @@ package org.example.functions.service;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.azure.ai.documentintelligence.DocumentIntelligenceClient;
+import com.azure.ai.documentintelligence.DocumentIntelligenceClientBuilder;
 import com.azure.ai.formrecognizer.documentanalysis.DocumentAnalysisClient;
 import com.azure.ai.formrecognizer.documentanalysis.DocumentAnalysisClientBuilder;
 import com.azure.ai.formrecognizer.documentanalysis.models.AnalyzeResult;
@@ -10,9 +12,9 @@ import com.azure.ai.formrecognizer.documentanalysis.models.DocumentLine;
 import com.azure.ai.formrecognizer.documentanalysis.models.DocumentPage;
 import com.azure.ai.formrecognizer.documentanalysis.models.OperationResult;
 import com.azure.core.credential.AzureKeyCredential;
-import com.azure.core.util.BinaryData;
 import com.azure.core.util.logging.ClientLogger;
 import com.azure.core.util.polling.SyncPoller;
+import org.example.functions.model.PageChunk;
 
 /**
  * Service for processing documents using Azure Document Intelligence.
@@ -21,6 +23,7 @@ import com.azure.core.util.polling.SyncPoller;
 public class DocumentIntelligenceService {
     private static final String MODEL_ID = "prebuilt-layout";
     private final DocumentAnalysisClient documentAnalysisClient;
+    private DocumentIntelligenceClient documentIntelligenceClient ;
     private final ClientLogger logger = new ClientLogger(DocumentIntelligenceService.class);
 
     /**
@@ -42,29 +45,34 @@ public class DocumentIntelligenceService {
                 .endpoint(endpoint)
                 .credential(new AzureKeyCredential(apiKey))
                 .buildClient();
+
+        this.documentIntelligenceClient=new DocumentIntelligenceClientBuilder()
+                .endpoint(System.getenv(endpoint))
+                .credential(new AzureKeyCredential(apiKey))
+                .buildClient();
     }
 
     /**
      * Analyzes a document and extracts its text content.
      *
-     * @param content The document content as a byte array
+     * @param sasUrl The document content as a byte array
      * @return List of extracted text lines from the document
      * @throws DocumentProcessingException if there's an error processing the document
      */
-    public List<String> analyzeDocument(byte[] content) throws DocumentProcessingException {
-        if (content == null || content.length == 0) {
-            throw new IllegalArgumentException("Document content cannot be null or empty");
-        }
+    public void analyzeDocument(String sasUrl) throws DocumentProcessingException {
 
+
+        logger.info("Starting analysis for SAS URL: " + sasUrl);
         try {
-            BinaryData documentData = BinaryData.fromBytes(content);
             //
             SyncPoller<OperationResult, AnalyzeResult> poller =
-                    documentAnalysisClient.beginAnalyzeDocument("prebuilt-layout", documentData);
+                    documentAnalysisClient.beginAnalyzeDocumentFromUrl("prebuilt-read", sasUrl);
 
             AnalyzeResult result = poller.getFinalResult();
 
-            return extractTextLines(result);
+            List<PageChunk> pageChunks = chunkByPage(result);
+            System.out.println(pageChunks);
+
 
         } catch (Exception e) {
             String errorMsg = "Failed to process document: " + e.getMessage();
@@ -73,26 +81,24 @@ public class DocumentIntelligenceService {
         }
     }
 
-    /**
-     * Extracts text lines from the analysis result.
-     */
-    private List<String> extractTextLines(AnalyzeResult result) {
-        List<String> lines = new ArrayList<>();
+    public List<PageChunk> chunkByPage(AnalyzeResult result) {
+        List<PageChunk> chunks = new ArrayList<>();
 
-        if (result == null || result.getPages() == null) {
-            return lines;
-        }
-
+        int pageIndex = 1;
         for (DocumentPage page : result.getPages()) {
+            StringBuilder sb = new StringBuilder();
+
             if (page.getLines() != null) {
                 for (DocumentLine line : page.getLines()) {
-                    if (line != null && line.getContent() != null) {
-                        lines.add(line.getContent());
-                    }
+                    sb.append(line.getContent()).append(" ");
                 }
             }
+
+            chunks.add(new PageChunk(pageIndex, sb.toString().trim()));
+            pageIndex++;
         }
-        return lines;
+
+        return chunks;
     }
 }
 
