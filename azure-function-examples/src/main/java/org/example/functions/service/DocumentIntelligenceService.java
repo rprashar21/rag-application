@@ -3,8 +3,6 @@ package org.example.functions.service;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.azure.ai.documentintelligence.DocumentIntelligenceClient;
-import com.azure.ai.documentintelligence.DocumentIntelligenceClientBuilder;
 import com.azure.ai.formrecognizer.documentanalysis.DocumentAnalysisClient;
 import com.azure.ai.formrecognizer.documentanalysis.DocumentAnalysisClientBuilder;
 import com.azure.ai.formrecognizer.documentanalysis.models.AnalyzeResult;
@@ -23,7 +21,6 @@ import com.azure.core.util.polling.SyncPoller;
 public class DocumentIntelligenceService {
     private static final String MODEL_ID = "prebuilt-layout";
     private final DocumentAnalysisClient documentAnalysisClient;
-    private DocumentIntelligenceClient documentIntelligenceClient;
     private final ClientLogger logger = new ClientLogger(DocumentIntelligenceService.class);
 
     /**
@@ -45,11 +42,6 @@ public class DocumentIntelligenceService {
                 .endpoint(endpoint)
                 .credential(new AzureKeyCredential(apiKey))
                 .buildClient();
-
-        this.documentIntelligenceClient = new DocumentIntelligenceClientBuilder()
-                .credential(new AzureKeyCredential(apiKey))
-                .endpoint(endpoint)
-                .buildClient();
     }
 
     /**
@@ -70,8 +62,6 @@ public class DocumentIntelligenceService {
             SyncPoller<OperationResult, AnalyzeResult> poller =
                     documentAnalysisClient.beginAnalyzeDocument("prebuilt-layout", documentData);
 
-            // analyxe using document
-            documentIntelligenceClient.beginAnalyzeBatchDocuments("prebuilt-layout",documentData);
             AnalyzeResult result = poller.getFinalResult();
 
             return extractTextLines(result);
